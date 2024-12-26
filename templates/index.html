@@ -1,0 +1,94 @@
+<!-- templates/index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Twitter Trends</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-900 text-white min-h-screen p-8">
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-3xl font-bold mb-8 text-center">Twitter Trends</h1>
+        
+        <div class="text-center mb-8">
+            <button onclick="fetchTrends()" id="fetchButton" 
+                    class="bg-blue-500 hover:bg-blue-600 px-6 py-2 rounded">
+                Fetch Trends
+            </button>
+        </div>
+
+        <div id="loading" class="hidden text-center">Loading...</div>
+        
+        <div id="error" class="hidden text-red-500 text-center mb-4"></div>
+        
+        <div id="results" class="hidden">
+            <div class="text-gray-400 text-center mb-4">
+                Last updated: <span id="datetime"></span>
+            </div>
+
+            <div id="trendsContainer" class="grid gap-4 mb-8"></div>
+
+            <div class="text-gray-400 text-center mb-4">
+                IP: <span id="ipAddress"></span>
+            </div>
+
+            <pre id="mongodbRecord" class="bg-gray-800 p-4 rounded text-sm overflow-x-auto"></pre>
+        </div>
+    </div>
+
+    <script>
+    function fetchTrends() {
+        const button = document.getElementById('fetchButton');
+        const loading = document.getElementById('loading');
+        const results = document.getElementById('results');
+        const error = document.getElementById('error');
+        
+        button.disabled = true;
+        loading.classList.remove('hidden');
+        results.classList.add('hidden');
+        error.classList.add('hidden');
+        
+        fetch('/scrape')
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    // Update timestamp and IP
+                    document.getElementById('datetime').textContent = data.data.datetime;
+                    document.getElementById('ipAddress').textContent = data.data.ip_address;
+                    
+                    // Update trends
+                    const trendsContainer = document.getElementById('trendsContainer');
+                    trendsContainer.innerHTML = '';
+                    
+                    data.data.trends.forEach((trend, index) => {
+                        trendsContainer.innerHTML += `
+                            <div class="bg-gray-800 p-4 rounded">
+                                <div class="text-xl font-bold">#${index + 1} ${trend.name}</div>
+                                <div class="text-gray-400">${trend.category}</div>
+                                ${trend.posts ? `<div class="text-gray-400">${trend.posts}</div>` : ''}
+                            </div>
+                        `;
+                    });
+                    
+                    // Update MongoDB record
+                    document.getElementById('mongodbRecord').textContent = 
+                        JSON.stringify(JSON.parse(data.data.mongodb_record), null, 2);
+                    
+                    results.classList.remove('hidden');
+                } else {
+                    throw new Error(data.error);
+                }
+            })
+            .catch(err => {
+                error.textContent = err.message;
+                error.classList.remove('hidden');
+            })
+            .finally(() => {
+                button.disabled = false;
+                loading.classList.add('hidden');
+            });
+    }
+    </script>
+</body>
+</html>
